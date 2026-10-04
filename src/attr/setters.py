@@ -26,6 +26,10 @@ def pipe(*setters):
 
         return rv
 
+    # Remember the constituent setters, so that attrs.batch_update() can tell
+    # them apart and skip those that already ran in its prepare phase.
+    wrapped_pipe.__attrs_piped__ = setters
+
     return wrapped_pipe
 
 

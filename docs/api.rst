@@ -305,6 +305,30 @@ All objects from ``attrs.filters`` are also available from ``attr.filters`` (it'
    * attributes with ``init=False`` can't be set with ``evolve``.
    * the usual ``__init__`` validators will validate the new values.
 
+.. autofunction:: attrs.batch_update
+
+   For example:
+
+   .. doctest::
+
+      >>> @define
+      ... class Range:
+      ...     start: int
+      ...     end: int = field()
+      ...     @end.validator
+      ...     def _ordered(self, attribute, value):
+      ...         if value < self.start:
+      ...             raise ValueError("end must not be before start")
+      >>> r = Range(1, 2)
+      >>> attrs.batch_update(r, start=3, end=4)  # changes together: passes
+      Range(start=3, end=4)
+      >>> attrs.batch_update(r, start=5)  # alone it would break the invariant
+      Traceback (most recent call last):
+      ...
+      ValueError: end must not be before start
+      >>> r  # the failed batch changed nothing
+      Range(start=3, end=4)
+
 .. autofunction:: attrs.validate
 
    For example:

@@ -10,6 +10,7 @@ from functools import partial
 from typing import Callable, Literal, Protocol
 
 from . import exceptions, setters
+from ._batch import batch_update
 from ._cmp import cmp_using
 from ._config import get_run_validators, set_run_validators
 from ._funcs import asdict, assoc, astuple, has, resolve_types
@@ -56,6 +57,7 @@ __all__ = [
     "attrib",
     "attributes",
     "attrs",
+    "batch_update",
     "cmp_using",
     "converters",
     "define",
