@@ -28,6 +28,7 @@ from attr import cmp_using as cmp_using
 from attr import converters as converters
 from attr import Converter as Converter
 from attr import evolve as evolve
+from attr import update as update
 from attr import exceptions as exceptions
 from attr import Factory as Factory
 from attr import fields as fields

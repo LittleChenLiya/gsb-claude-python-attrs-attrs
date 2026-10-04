@@ -177,6 +177,10 @@ All objects from `attrs.filters` are also available in ``attr.filters``.
 
    Same as `attrs.evolve`.
 
+.. function:: update
+
+   Same as `attrs.update`.
+
 .. function:: validate
 
    Same as `attrs.validate`.

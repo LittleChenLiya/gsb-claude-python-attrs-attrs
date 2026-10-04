@@ -20,6 +20,7 @@ from attr import (
     make_class,
     mutable,
     resolve_types,
+    update,
     validate,
 )
 from attr._make import ClassProps
@@ -65,6 +66,7 @@ __all__ = [
     "mutable",
     "resolve_types",
     "setters",
+    "update",
     "validate",
     "validators",
 ]

@@ -305,6 +305,45 @@ All objects from ``attrs.filters`` are also available from ``attr.filters`` (it'
    * attributes with ``init=False`` can't be set with ``evolve``.
    * the usual ``__init__`` validators will validate the new values.
 
+.. autofunction:: attrs.update
+
+   For example:
+
+   .. doctest::
+
+      >>> def check_range(inst, attribute, value):
+      ...     if inst.start >= inst.end:
+      ...         raise ValueError("start must be less than end")
+      >>> @define
+      ... class Range:
+      ...     start: int = field(validator=check_range)
+      ...     end: int
+      >>> r = Range(1, 2)
+      >>> attrs.update(r, start=3, end=4)
+      Range(start=3, end=4)
+      >>> r
+      Range(start=3, end=4)
+
+   ``update`` applies multiple changes atomically: converters and validators
+   run on an isolated candidate copy, and only if everything passes are the
+   changes committed to the original object.
+
+   Transaction limits:
+
+   * Setter hooks run **once** per actually changed field, in declaration
+     order, during the commit phase. They do not run on the candidate.
+   * If a setter hook raises during commit, all already-committed fields are
+     rolled back to their original values. Side effects performed by hooks
+     (for example, external I/O) are not rolled back.
+   * Converters and validators run on the candidate, so they must not rely on
+     observing intermediate states on the original object.
+   * ``__attrs_pre_init__`` and ``__attrs_post_init__`` are not called; only
+     field converters and field validators run on the candidate.
+   * Frozen instances are explicitly rejected.
+   * Fields with ``init=False`` are updated through the same public setattr
+     path as ``init=True`` fields.
+   * Keys may be attribute names or aliases.
+
 .. autofunction:: attrs.validate
 
    For example:
