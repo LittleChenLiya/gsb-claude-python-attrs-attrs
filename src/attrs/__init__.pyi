@@ -27,6 +27,9 @@ from attr import AttrsInstance as AttrsInstance
 from attr import cmp_using as cmp_using
 from attr import converters as converters
 from attr import Converter as Converter
+from attr import CopyPlan as CopyPlan
+from attr import copy as copy
+from attr import DEEP as DEEP
 from attr import evolve as evolve
 from attr import exceptions as exceptions
 from attr import Factory as Factory
@@ -36,7 +39,10 @@ from attr import filters as filters
 from attr import has as has
 from attr import make_class as make_class
 from attr import NOTHING as NOTHING
+from attr import REJECT as REJECT
 from attr import resolve_types as resolve_types
+from attr import SHARE as SHARE
+from attr import SHALLOW as SHALLOW
 from attr import setters as setters
 from attr import validate as validate
 from attr import validators as validators

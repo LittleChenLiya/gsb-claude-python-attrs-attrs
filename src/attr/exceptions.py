@@ -93,3 +93,14 @@ class NotCallableError(TypeError):
 
     def __str__(self):
         return str(self.msg)
+
+
+class CopyError(ValueError):
+    """
+    A copy plan encountered an object that cannot be copied.
+
+    Raised before any copying takes place (during the validation phase), with
+    the field path to the unsupported object.
+
+    .. versionadded:: 26.1.0
+    """

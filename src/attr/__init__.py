@@ -12,6 +12,7 @@ from typing import Callable, Literal, Protocol
 from . import exceptions, setters
 from ._cmp import cmp_using
 from ._config import get_run_validators, set_run_validators
+from ._copy import DEEP, REJECT, SHARE, SHALLOW, CopyPlan, copy
 from ._funcs import asdict, assoc, astuple, has, resolve_types
 from ._make import (
     NOTHING,
@@ -43,10 +44,15 @@ class AttrsInstance(Protocol):
 NothingType = Literal[_Nothing.NOTHING]
 
 __all__ = [
+    "DEEP",
     "NOTHING",
+    "REJECT",
+    "SHARE",
+    "SHALLOW",
     "Attribute",
     "AttrsInstance",
     "Converter",
+    "CopyPlan",
     "Factory",
     "NothingType",
     "asdict",
@@ -58,6 +64,7 @@ __all__ = [
     "attrs",
     "cmp_using",
     "converters",
+    "copy",
     "define",
     "evolve",
     "exceptions",

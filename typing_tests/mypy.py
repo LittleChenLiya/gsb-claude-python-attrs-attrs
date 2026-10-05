@@ -426,3 +426,23 @@ class Hashable:
 def test(cls: type) -> None:
     if attr.has(cls):
         attr.resolve_types(cls)
+
+
+# Copy plans ---
+
+
+@attrs.define
+class Copyable:
+    x: int
+    y: list
+
+
+def copy_plan_example() -> None:
+    plan = attrs.CopyPlan()
+    plan.share("x").shallow("y").deep("z")
+    plan.register_type(list, attrs.REJECT)
+    copied = plan.copy(Copyable(1, [2]))
+    reveal_type(copied)
+
+    copied2 = attrs.copy(Copyable(1, [2]), plan)
+    reveal_type(copied2)

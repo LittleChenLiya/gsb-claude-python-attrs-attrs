@@ -1,15 +1,21 @@
 # SPDX-License-Identifier: MIT
 
 from attr import (
+    DEEP,
     NOTHING,
+    REJECT,
+    SHARE,
+    SHALLOW,
     Attribute,
     AttrsInstance,
     Converter,
+    CopyPlan,
     Factory,
     NothingType,
     _make_getattr,
     assoc,
     cmp_using,
+    copy,
     define,
     evolve,
     field,
@@ -29,11 +35,16 @@ from . import exceptions, filters, setters
 
 
 __all__ = [
+    "DEEP",
     "NOTHING",
+    "REJECT",
+    "SHARE",
+    "SHALLOW",
     "Attribute",
     "AttrsInstance",
     "ClassProps",
     "Converter",
+    "CopyPlan",
     "Factory",
     "NothingType",
     "__author__",
@@ -51,6 +62,7 @@ __all__ = [
     "astuple",
     "cmp_using",
     "converters",
+    "copy",
     "define",
     "evolve",
     "exceptions",
