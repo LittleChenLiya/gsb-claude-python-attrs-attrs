@@ -24,6 +24,7 @@ from attr import (
 )
 from attr._make import ClassProps
 from attr._next_gen import asdict, astuple, inspect
+from attr._trace import InitTrace, TraceEvent, trace_init
 
 from . import exceptions, filters, setters
 
@@ -35,7 +36,9 @@ __all__ = [
     "ClassProps",
     "Converter",
     "Factory",
+    "InitTrace",
     "NothingType",
+    "TraceEvent",
     "__author__",
     "__copyright__",
     "__description__",
@@ -65,6 +68,7 @@ __all__ = [
     "mutable",
     "resolve_types",
     "setters",
+    "trace_init",
     "validate",
     "validators",
 ]

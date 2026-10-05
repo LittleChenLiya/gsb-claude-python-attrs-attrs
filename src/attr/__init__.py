@@ -28,6 +28,7 @@ from ._make import (
     validate,
 )
 from ._next_gen import define, field, frozen, mutable
+from ._trace import InitTrace, TraceEvent, trace_init
 from ._version_info import VersionInfo
 
 
@@ -48,7 +49,9 @@ __all__ = [
     "AttrsInstance",
     "Converter",
     "Factory",
+    "InitTrace",
     "NothingType",
+    "TraceEvent",
     "asdict",
     "assoc",
     "astuple",
@@ -75,6 +78,7 @@ __all__ = [
     "s",
     "set_run_validators",
     "setters",
+    "trace_init",
     "validate",
     "validators",
 ]
