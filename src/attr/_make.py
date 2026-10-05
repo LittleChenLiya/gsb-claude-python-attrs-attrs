@@ -33,6 +33,14 @@ from .exceptions import (
     NotAnAttrsClassError,
     UnannotatedAttributeError,
 )
+from ._trace import (
+    CreationTrace,
+    _get_trace,
+    _trace_converter,
+    _trace_factory,
+    _trace_post_init,
+    _trace_validator,
+)
 
 
 # This is used at least twice, so cache it here.
@@ -2068,7 +2076,12 @@ def _make_init_script(
         elif has_cls_on_setattr and a.on_setattr is not setters.NO_OP:
             needs_cached_setattr = True
 
+    # Only trace the normal __init__ path, not __attrs_init__ (which is used
+    # for reconstructing objects).
+    trace = not attrs_init
+
     script, globs, annotations = _attrs_to_init_script(
+        cls,
         filtered_attrs,
         frozen,
         slots,
@@ -2081,6 +2094,7 @@ def _make_init_script(
         needs_cached_setattr,
         has_cls_on_setattr,
         "__attrs_init__" if attrs_init else "__init__",
+        trace,
     )
     if cls.__module__ in sys.modules:
         # This makes typing.get_type_hints(CLS.__init__) resolve string types.
@@ -2092,6 +2106,21 @@ def _make_init_script(
         # Save the lookup overhead in __init__ if we need to circumvent
         # setattr hooks.
         globs["_cached_setattr_get"] = _OBJ_SETATTR.__get__
+
+    if trace:
+        # Inject the tracing helpers into the globals of the generated
+        # function.  These are only used when tracing is active.
+        globs.update(
+            {
+                "_get_trace": _get_trace,
+                "CreationTrace": CreationTrace,
+                "_trace_factory": _trace_factory,
+                "_trace_converter": _trace_converter,
+                "_trace_validator": _trace_validator,
+                "_trace_post_init": _trace_post_init,
+                "_field_names": tuple(a.name for a in filtered_attrs),
+            }
+        )
 
     return script, globs, annotations
 
@@ -2185,6 +2214,7 @@ def _determine_setters(
 
 
 def _attrs_to_init_script(
+    cls: type,
     attrs: list[Attribute],
     is_frozen: bool,
     is_slotted: bool,
@@ -2197,12 +2227,17 @@ def _attrs_to_init_script(
     needs_cached_setattr: bool,
     has_cls_on_setattr: bool,
     method_name: str,
+    trace: bool = False,
 ) -> tuple[str, dict, dict]:
     """
     Return a script of an initializer for *attrs*, a dict of globals, and
     annotations for the initializer.
 
     The globals are required by the generated script.
+
+    When *trace* is true, the generated initializer records the actual order
+    of default factories, converters, validators, and the post-init hook into
+    a trace object (if tracing is active).  The trace does not record values.
     """
     lines = ["self.__attrs_pre_init__()"] if call_pre_init else []
 
@@ -2229,6 +2264,59 @@ def _attrs_to_init_script(
     names_for_globals = {}
     annotations = {"return": None}
 
+    # When tracing, we wrap the assignment generation so that factory and
+    # converter calls go through the tracing helpers.
+    if trace:
+        def _gen_assignment(attr_name, value_expr, has_on_setattr):
+                """
+                Generate an assignment line for *attr_name* with *value_expr*.
+                """
+                if is_frozen:
+                    if is_slotted:
+                        return f"_setattr('{attr_name}', {value_expr})"
+                    if _is_slot_attr(attr_name, base_attr_map) or has_on_setattr:
+                        return f"_setattr('{attr_name}', {value_expr})"
+                    return f"_inst_dict['{attr_name}'] = {value_expr}"
+                if has_on_setattr:
+                    return f"_setattr('{attr_name}', {value_expr})"
+                return f"self.{attr_name} = {value_expr}"
+
+        def _gen_factory_expr(attr_name, factory_name, takes_self):
+            """
+            Generate an expression that calls a default factory, wrapped in
+            the tracing helper when tracing is active.
+            """
+            return (
+                f"_trace_factory(_trace, self, '{attr_name}', "
+                f"{factory_name}, {takes_self}, _field_names)"
+            )
+
+        def _gen_converter_expr(attr_name, converter, value_expr):
+            """
+            Generate an expression that runs a converter, wrapped in the
+            tracing helper when tracing is active.
+            """
+            # The Converter instance (not the plain callable) is injected into
+            # the globals so that _trace_converter can dispatch based on
+            # takes_self / takes_field.
+            converter_obj_name = "__attr_converter_obj_" + attr_name
+            return (
+                f"_trace_converter(_trace, '{attr_name}', {converter_obj_name}, "
+                f"{value_expr}, self, attr_dict['{attr_name}'])"
+            )
+
+        def _fmt_setter(attr_name, value_var, has_on_setattr):
+            return _gen_assignment(attr_name, value_var, has_on_setattr)
+
+        def _fmt_setter_with_converter(
+            attr_name, value_var, has_on_setattr, converter
+        ):
+            expr = _gen_converter_expr(attr_name, converter, value_var)
+            return _gen_assignment(attr_name, expr, has_on_setattr)
+
+        fmt_setter = _fmt_setter
+        fmt_setter_with_converter = _fmt_setter_with_converter
+
     for a in attrs:
         if a.validator:
             attrs_to_validate.append(a)
@@ -2243,20 +2331,32 @@ def _attrs_to_init_script(
 
         has_factory = isinstance(a.default, Factory)
         maybe_self = "self" if has_factory and a.default.takes_self else ""
+        takes_self = has_factory and a.default.takes_self
 
         if a.converter is not None and not isinstance(a.converter, Converter):
             converter = Converter(a.converter)
         else:
             converter = a.converter
 
+        if trace and converter is not None:
+            # Inject the Converter instance (not the plain callable) so that
+            # _trace_converter can dispatch based on takes_self/takes_field.
+            names_for_globals["__attr_converter_obj_" + attr_name] = converter
+
         if a.init is False:
             if has_factory:
                 init_factory_name = _INIT_FACTORY_PAT % (a.name,)
+                if trace:
+                    factory_expr = _gen_factory_expr(
+                        attr_name, init_factory_name, takes_self
+                    )
+                else:
+                    factory_expr = init_factory_name + f"({maybe_self})"
                 if converter is not None:
                     lines.append(
                         fmt_setter_with_converter(
                             attr_name,
-                            init_factory_name + f"({maybe_self})",
+                            factory_expr,
                             has_on_setattr,
                             converter,
                         )
@@ -2268,7 +2368,7 @@ def _attrs_to_init_script(
                     lines.append(
                         fmt_setter(
                             attr_name,
-                            init_factory_name + f"({maybe_self})",
+                            factory_expr,
                             has_on_setattr,
                         )
                     )
@@ -2323,6 +2423,12 @@ def _attrs_to_init_script(
             lines.append(f"if {arg_name} is not NOTHING:")
 
             init_factory_name = _INIT_FACTORY_PAT % (a.name,)
+            if trace:
+                factory_expr = _gen_factory_expr(
+                    attr_name, init_factory_name, takes_self
+                )
+            else:
+                factory_expr = init_factory_name + "(" + maybe_self + ")"
             if converter is not None:
                 lines.append(
                     "    "
@@ -2335,7 +2441,7 @@ def _attrs_to_init_script(
                     "    "
                     + fmt_setter_with_converter(
                         attr_name,
-                        init_factory_name + "(" + maybe_self + ")",
+                        factory_expr,
                         has_on_setattr,
                         converter,
                     )
@@ -2352,7 +2458,7 @@ def _attrs_to_init_script(
                     "    "
                     + fmt_setter(
                         attr_name,
-                        init_factory_name + "(" + maybe_self + ")",
+                        factory_expr,
                         has_on_setattr,
                     )
                 )
@@ -2389,12 +2495,21 @@ def _attrs_to_init_script(
         for a in attrs_to_validate:
             val_name = "__attr_validator_" + a.name
             attr_name = "__attr_" + a.name
-            lines.append(f"    {val_name}(self, {attr_name}, self.{a.name})")
+            if trace:
+                lines.append(
+                    f"    _trace_validator(_trace, self, '{a.name}', "
+                    f"{val_name}, {attr_name}, self.{a.name})"
+                )
+            else:
+                lines.append(f"    {val_name}(self, {attr_name}, self.{a.name})")
             names_for_globals[val_name] = a.validator
             names_for_globals[attr_name] = a
 
     if call_post_init:
-        lines.append("self.__attrs_post_init__()")
+        if trace:
+            lines.append("_trace_post_init(_trace, self.__attrs_post_init__)")
+        else:
+            lines.append("self.__attrs_post_init__()")
 
     # Because this is set only after __attrs_post_init__ is called, a crash
     # will result if post-init tries to access the hash code.  This seemed
@@ -2439,10 +2554,29 @@ def _attrs_to_init_script(
 
     # Python <3.12 doesn't allow backslashes in f-strings.
     NL = "\n    "
-    return (
-        f"""def {method_name}(self, {args}):
+    if trace:
+        # Wrap the body in try/finally so the trace is recorded even if
+        # creation fails.  The trace object is only created when tracing is
+        # active, so normal construction pays only the cost of these checks.
+        # We use the class name (not the class object) to avoid creating a
+        # self-reference in the function's globals, which would prevent the
+        # class from being garbage collected.
+        body = "\n        ".join(lines) if lines else "pass"
+        script = f"""def {method_name}(self, {args}):
+    _trace_ctx = _get_trace()
+    _trace = CreationTrace({cls.__name__!r}) if _trace_ctx is not None else None
+    try:
+        {body}
+    finally:
+        if _trace is not None:
+            _trace_ctx.record(_trace)
+"""
+    else:
+        script = f"""def {method_name}(self, {args}):
     {NL.join(lines) if lines else "pass"}
-""",
+"""
+    return (
+        script,
         names_for_globals,
         annotations,
     )

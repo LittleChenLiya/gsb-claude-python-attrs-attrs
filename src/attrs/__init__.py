@@ -5,8 +5,10 @@ from attr import (
     Attribute,
     AttrsInstance,
     Converter,
+    CreationTrace,
     Factory,
     NothingType,
+    Stage,
     _make_getattr,
     assoc,
     cmp_using,
@@ -20,6 +22,7 @@ from attr import (
     make_class,
     mutable,
     resolve_types,
+    trace,
     validate,
 )
 from attr._make import ClassProps
@@ -34,8 +37,10 @@ __all__ = [
     "AttrsInstance",
     "ClassProps",
     "Converter",
+    "CreationTrace",
     "Factory",
     "NothingType",
+    "Stage",
     "__author__",
     "__copyright__",
     "__description__",
@@ -65,6 +70,7 @@ __all__ = [
     "mutable",
     "resolve_types",
     "setters",
+    "trace",
     "validate",
     "validators",
 ]
