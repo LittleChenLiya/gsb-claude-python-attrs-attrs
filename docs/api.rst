@@ -122,6 +122,8 @@ That means that it doesn't matter from which namespace they've been raised and/o
 .. autoexception:: DefaultAlreadySetError
 .. autoexception:: NotCallableError
 .. autoexception:: UnannotatedAttributeError
+.. autoexception:: CopyPlanError
+.. autoexception:: UnsupportedCopyTypeError
 
    For example::
 
@@ -304,6 +306,56 @@ All objects from ``attrs.filters`` are also available from ``attr.filters`` (it'
    * private attributes should be specified without the leading underscore, just like in ``__init__``.
    * attributes with ``init=False`` can't be set with ``evolve``.
    * the usual ``__init__`` validators will validate the new values.
+
+.. autofunction:: attrs.copy_with_plan
+
+   The *plan* is an `attrs.CopyPlan` that registers, per field name and per
+   type, one of three strategies:
+
+   * ``CopyStrategy.SHARED`` -- reuse the value as-is (alias it),
+   * ``CopyStrategy.SHALLOW`` -- copy it with `copy.copy`,
+   * ``CopyStrategy.RECURSIVE`` -- copy it recursively (the default).
+
+   For example, all three strategies side by side:
+
+   .. doctest::
+
+      >>> plan = (
+      ...     attrs.CopyPlan()
+      ...     .field("shared", attrs.CopyStrategy.SHARED)
+      ...     .field("shallow", attrs.CopyStrategy.SHALLOW)
+      ...     .field("recursive", attrs.CopyStrategy.RECURSIVE)
+      ... )
+      >>> @define
+      ... class C:
+      ...     shared: list
+      ...     shallow: list
+      ...     recursive: list
+      >>> src = C(shared=[[1]], shallow=[[2]], recursive=[[3]])
+      >>> out = plan.copy(src)
+      >>> out.shared is src.shared            # aliased
+      True
+      >>> out.shallow[0] is src.shallow[0]    # new list, same elements
+      True
+      >>> out.recursive[0] is src.recursive[0]  # fully independent
+      False
+
+   Internal sharing is preserved and cycles terminate: if two fields point
+   at the same list, the copy contains one single new list for both.
+   Types can also be given explicit policies with
+   ``CopyPlan().on_type(T, policy)`` where *policy* is a strategy, a
+   callable copier, or ``CopyPlan.REJECT`` to refuse copying values of that
+   type with a clear error naming the field path.
+
+   The dedicated tests can be run with::
+
+      python -m pytest tests/test_copy_plan.py -v
+
+.. autoclass:: attrs.CopyPlan
+   :members: field, on_type, copy
+
+.. autoclass:: attrs.CopyStrategy
+   :members:
 
 .. autofunction:: attrs.validate
 

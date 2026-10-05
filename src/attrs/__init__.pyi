@@ -29,6 +29,9 @@ from attr import converters as converters
 from attr import Converter as Converter
 from attr import evolve as evolve
 from attr import exceptions as exceptions
+from attr import CopyPlan as CopyPlan
+from attr import CopyStrategy as CopyStrategy
+from attr import copy_with_plan as copy_with_plan
 from attr import Factory as Factory
 from attr import fields as fields
 from attr import fields_dict as fields_dict

@@ -380,6 +380,35 @@ def has(cls: type) -> TypeGuard[type[AttrsInstance]]: ...
 def assoc(inst: _T, **changes: Any) -> _T: ...
 def evolve(inst: _T, **changes: Any) -> _T: ...
 
+# _copy --
+
+class CopyStrategy(enum.Enum):
+    SHARED = "shared"
+    SHALLOW = "shallow"
+    RECURSIVE = "recursive"
+
+_CopyPolicy = CopyStrategy | Callable[[Any], Any] | Any
+
+class CopyPlan:
+    REJECT: Any
+    default: CopyStrategy
+    field_strategies: dict[str, CopyStrategy]
+    type_policies: dict[type, _CopyPolicy]
+    def __init__(
+        self,
+        default: CopyStrategy = ...,
+        *,
+        fields: Mapping[str, CopyStrategy] | None = ...,
+        types: Mapping[type, _CopyPolicy] | None = ...,
+    ) -> None: ...
+    def field(self, name: str, strategy: CopyStrategy) -> "CopyPlan": ...
+    def on_type(self, type_: type, policy: _CopyPolicy) -> "CopyPlan": ...
+    def copy(self, inst: _T, **changes: Any) -> _T: ...
+
+def copy_with_plan(
+    inst: _T, plan: CopyPlan | None = ..., **changes: Any
+) -> _T: ...
+
 # _config --
 
 def set_run_validators(run: bool) -> None: ...

@@ -12,6 +12,7 @@ from typing import Callable, Literal, Protocol
 from . import exceptions, setters
 from ._cmp import cmp_using
 from ._config import get_run_validators, set_run_validators
+from ._copy import CopyPlan, CopyStrategy, copy_with_plan
 from ._funcs import asdict, assoc, astuple, has, resolve_types
 from ._make import (
     NOTHING,
@@ -47,6 +48,8 @@ __all__ = [
     "Attribute",
     "AttrsInstance",
     "Converter",
+    "CopyPlan",
+    "CopyStrategy",
     "Factory",
     "NothingType",
     "asdict",
@@ -58,6 +61,7 @@ __all__ = [
     "attrs",
     "cmp_using",
     "converters",
+    "copy_with_plan",
     "define",
     "evolve",
     "exceptions",

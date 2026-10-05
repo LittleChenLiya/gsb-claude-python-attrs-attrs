@@ -93,3 +93,37 @@ class NotCallableError(TypeError):
 
     def __str__(self):
         return str(self.msg)
+
+
+class CopyPlanError(ValueError):
+    """
+    A copy plan could not be executed.
+
+    .. versionadded:: 25.4.0
+    """
+
+
+class UnsupportedCopyTypeError(CopyPlanError):
+    """
+    A value encountered while copying is not supported by the copy plan.
+
+    Carries the full field ``path`` (for example ``"Root.items[2].tag"``)
+    and the offending ``value_type``.
+
+    .. versionadded:: 25.4.0
+    """
+
+    def __init__(self, path, value_type, rejected=False):
+        self.path = path
+        self.value_type = value_type
+        reason = (
+            "is explicitly rejected by the copy plan"
+            if rejected
+            else "is not supported by the copy plan"
+        )
+        msg = (
+            f"Cannot copy field {path!r}: values of type "
+            f"{value_type.__qualname__} {reason}."
+        )
+        super().__init__(msg)
+        self.msg = msg
